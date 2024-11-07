@@ -44,33 +44,6 @@ float intTriMinValidAngleDeg = 0.;
 // Output options
 std::string outputPrefix;
 
-void updateTriagulationViz() {
-  if (!withGUI) {
-    return;
-  }
-
-  // Update stats
-  intTriIsDelaunay = intTri->isDelaunay();
-  intTriMinValidAngleDeg = intTri->minAngleDegreesAtValidFaces(60);
-
-  // Get the edge traces
-  EdgeData<std::vector<SurfacePoint>> traces = intTri->traceAllIntrinsicEdgesAlongInput();
-
-  // Convert to 3D positions
-  std::vector<std::vector<Vector3>> traces3D(traces.size());
-  size_t i = 0;
-  for (Edge e : intTri->mesh.edges()) {
-    for (SurfacePoint& p : traces[e]) {
-      traces3D[i].push_back(p.interpolate(geometry->inputVertexPositions));
-    }
-    i++;
-  }
-
-  // Register with polyscope
-  auto graphQ = psMesh->addSurfaceGraphQuantity("intrinsic edges", traces3D);
-  graphQ->setEnabled(true);
-}
-
 void resetTriangulation() {
   if (backend == "Integer Coordinates") {
     intTri.reset(new IntegerCoordinatesIntrinsicTriangulation(*mesh, *geometry));
@@ -79,7 +52,6 @@ void resetTriangulation() {
   } else {
     throw std::runtime_error("unrecognized backed");
   }
-  updateTriagulationViz();
 }
 
 void flipDelaunayTriangulation() {
@@ -89,8 +61,6 @@ void flipDelaunayTriangulation() {
   if (!intTri->isDelaunay()) {
     polyscope::warning("Failed to make mesh Delaunay with flips");
   }
-
-  updateTriagulationViz();
   std::cout << "\t...done" << std::endl;
 }
 
@@ -107,8 +77,6 @@ void refineDelaunayTriangulation() {
   if (!intTri->isDelaunay()) {
     polyscope::warning("Failed to make mesh Delaunay with flips & refinement.");
   }
-
-  updateTriagulationViz();
   std::cout << "\t...done" << std::endl;
 }
 
@@ -460,23 +428,6 @@ int main(int argc, char** argv) {
     psMesh = polyscope::registerSurfaceMesh(polyscope::guessNiceNameFromPath(args::get(inputFilename)),
                                             geometry->inputVertexPositions, mesh->getFaceVertexList(),
                                             polyscopePermutations(*mesh));
-
-
-    // Set vertex tangent spaces
-    geometry->requireVertexTangentBasis();
-    VertexData<Vector3> vBasisX(*mesh);
-    for (Vertex v : mesh->vertices()) {
-      vBasisX[v] = geometry->vertexTangentBasis[v][0];
-    }
-    psMesh->setVertexTangentBasisX(vBasisX);
-
-    // Set face tangent spaces
-    geometry->requireFaceTangentBasis();
-    FaceData<Vector3> fBasisX(*mesh);
-    for (Face f : mesh->faces()) {
-      fBasisX[f] = geometry->faceTangentBasis[f][0];
-    }
-    psMesh->setFaceTangentBasisX(fBasisX);
 
     // Nice defaults
     psMesh->setEdgeWidth(1.0);
